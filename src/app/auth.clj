@@ -3,14 +3,13 @@
     [com.mitranim.forge :as forge]
     [clojure.pprint :refer [pprint]]
     [buddy.sign.jwt :as jwt]
+    [buddy.core.keys :refer [str->public-key]]
     [app.util :as util :refer [getenv]]
   ))
 
 (set! *warn-on-reflection* true)
 
 
-
-(def SIGNING_ALGORITHM :hs256)
 
 (def ID_COOKIE :app-id-token)
 
@@ -48,8 +47,11 @@
 
 
 
+; (defn decode-verify [token]
+;   (jwt/unsign token (getenv "AUTH0_CLIENT_SECRET") {:alg :hs256}))
+
 (defn decode-verify [token]
-  (jwt/unsign token (getenv "AUTH0_CLIENT_SECRET") {:alg SIGNING_ALGORITHM}))
+  (jwt/unsign token (str->public-key (getenv "AUTH0_PEM_CERTIFICATE")) {:alg :rs256}))
 
 (defn decode-or-report [token]
   (try (decode-verify token)
@@ -58,7 +60,8 @@
         (throw err))
       (binding [*out* *err*]
         (println "Token validation failed:")
-        (prn err)))))
+        (prn err)
+        nil))))
 
 
 (defn login-callback [req]
@@ -94,5 +97,7 @@
 (defn wrap-authenticate [handler]
   (fn [request]
     (let [id-token (-> request :cookies get-id-token :value)
-          user (when id-token (decode-or-report id-token))]
-      (handler (assoc request :user user)))))
+          user-meta (when id-token (decode-or-report id-token))
+          ; This must be replaced by database fetch.
+          user (when-let [id (:sub user-meta)] (fetch-user id))]
+      (handler (merge request {:user-meta user-meta :user user})))))

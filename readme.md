@@ -5,12 +5,14 @@ Quickstart/template for a Clojure/Ring webserver with Auth0.
 Auth0 is a cloud authentication service: https://auth0.com. It has a free plan
 suitable for small apps. This template uses the Auth0 HTTPS API without any SDK.
 
+
 ## Usage
 
   * clone and `cd` to the repo
   * [setup Auth0](#auth0-setup)
   * setup [env secrets](#env-secrets)
   * [run](#run)
+
 
 ### Auth0 Setup
 
@@ -55,11 +57,7 @@ https://<host-prod>/auth/logout
 
 Replacing the hosts as before.
 
-6. Change the JWT signature algorithm to HS256. Scroll to bottom → "Show
-   Advanced Settings" → "OAuth" → "JsonWebToken Signature Algorithm" → select
-   HS256. It requires less setup and is good enough for our purposes.
-
-7. Get a server-to-server authentication key.
+6. Get a server-to-server authentication key.
 
 Auth0 has two API tiers: untrusted (called "authentication API") and trusted
 (called "management API"). Most tutorials focus on the untrusted API, which
@@ -72,6 +70,24 @@ Set "Token Expiration" to a duration that makes sense, e.g. `31536000` → Updat
 & Regenerate → copy. Add it to the [env secrets](#env-secrets) under
 `AUTH0_API_KEY`.
 
+7. Get the signing certificate
+
+We'll need Auth0's certificate for verifying (unsigning) JWT tokens. Go back to
+"Clients" → pick your app → "Settings" → scroll down → "Show Advanced Settings"
+→ "Certificates" → download as PEM. It's a plain text file. Add the certificate
+it contains to the [env secrets](#env-secrets) under `AUTH0_PEM_CERTIFICATE`,
+joining the lines or adding a backslash after each:
+
+```properties
+AUTH0_PEM_CERTIFICATE=\
+-----BEGIN CERTIFICATE-----\n\
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
+..............................................\
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
+\n-----END CERTIFICATE-----
+```
+
+
 ### Env Secrets
 
 Copy or rename `.env.properties.example` → `.env.properties`:
@@ -81,6 +97,7 @@ cp .env.properties.example .env.properties
 ```
 
 Fill out the missing keys with the secrets from [Auth0 Setup](#auth0-setup).
+
 
 ### Run
 
@@ -101,6 +118,7 @@ lein repl :connect
 If you have completed all previous steps, this should launch the app and report
 a localhost URL to open. It should display a webpage with the authentication
 status and a login link.
+
 
 ## Misc
 

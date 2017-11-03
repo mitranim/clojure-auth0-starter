@@ -14,6 +14,6 @@
   (forge/reset-system! create-system))
 
 (defn main-dev []
-  (forge/start-development! {:system-symbol 'app.core/create-system})
-  (forge/reset)
+  (forge/start-development! {:system-symbol `create-system})
+  (forge/reset-system! create-system)
   (println "Started server on" (str "http://localhost:" (getenv "LOCAL_PORT"))))

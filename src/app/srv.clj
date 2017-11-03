@@ -17,8 +17,8 @@
 
 
 (def styles "
-html {
-  font-family: 'Helvetica Neue', Roboto, 'Segoe UI', Verdana, sans-serif;
+* {
+  font-family: Menlo, Consolas, 'Helvetica Neue', Roboto, 'Segoe UI', Verdana, sans-serif;
   font-size: 18px;
 }
 
@@ -53,10 +53,9 @@ body {
      [:p "ID token from cookie: "
       [:pre (pp-str (-> req :cookies auth/ID_COOKIE :value))]]
      [:p "Decoded ID token: "
+      [:pre (pp-str (:user-meta req))]]
+     [:p "Fetched user: "
       [:pre (pp-str (:user req))]]
-     (when-let [user-id (-> req :user :sub)]
-       [:p "Fetched user: "
-        [:pre (pp-str (auth/fetch-user user-id))]])
      [:p [:a {:href "/login"} "Login"]]
      [:p [:a {:href "/logout"} "Logout"]]
      ]))
