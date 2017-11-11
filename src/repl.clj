@@ -1,4 +1,4 @@
-(ns user
+(ns repl
   (:use clojure.repl)
   (:require
     [com.mitranim.forge :as forge]
