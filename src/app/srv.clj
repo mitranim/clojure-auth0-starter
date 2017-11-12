@@ -26,6 +26,11 @@ body {
   padding: 1rem;
   max-width: 80ch;
 }
+
+pre {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
 ")
 
 
@@ -51,7 +56,7 @@ body {
       "Follow the setup instructions in the readme, then try to login. "
       "You should be returned to this page, and it should display user details."]
      [:p "ID token from cookie: "
-      [:pre (pp-str (-> req :cookies auth/ID_COOKIE :value))]]
+      [:pre (pp-str (-> req :cookies (get (name auth/ID_COOKIE)) :value))]]
      [:p "Decoded ID token: "
       [:pre (pp-str (:user-meta req))]]
      [:p "Fetched user: "
@@ -100,12 +105,7 @@ auth0Lock.show()
         location   (str "https://" domain "/v2/logout?client_id=" client-id
                         "&returnTo=" return-to)]
   {:status 303
-   :headers {"Location" location}}))
-
-
-
-(defn wrap-keywordize-cookies [handler]
-  (comp handler #(update % :cookies keywordize-keys)))
+   :headers {"location" location}}))
 
 
 
@@ -118,7 +118,6 @@ auth0Lock.show()
       (GET "/auth/callback" [] auth/login-callback)
       (GET "/auth/logout"   [] auth/logout-callback))
     auth/wrap-authenticate
-    wrap-keywordize-cookies
     (wrap-defaults site-defaults)
     forge/wrap-development-features))
 

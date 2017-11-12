@@ -2,9 +2,8 @@
   (:require
     [com.mitranim.forge :as forge]
     [org.httpkit.client :as http]
-    [cheshire.core :as cheshire]
-    [clojure.edn]
-    ))
+    [cheshire.core :as cheshire :refer [generate-string parse-string]]
+    [clojure.edn]))
 
 (set! *warn-on-reflection* true)
 
@@ -40,22 +39,66 @@
 (defn qualify-relative-path [req path]
   (str (name (req-scheme req)) "://" (get-header req "host") "/" (trim-leading-slashes path)))
 
+
+
+(defn err? [value]
+  (and (instance? clojure.lang.ILookup value)
+       (contains? value :error)))
+
+
+
+(defn promise? [value]
+  (and
+    (instance? clojure.lang.IDeref value)
+    (instance? clojure.lang.IBlockingDeref value)
+    (instance? clojure.lang.IPending value)))
+
+(defn maybe-force [value] (if (promise? value) @value value))
+
+(defn map-promise
+  "Creates a read-only promise that applies the given function to the
+  eventual result of the given promise. Also works on futures. Works
+  like flatmap: automatically resolves promises produced by the inner function.
+
+  Usage: (map-promise inc (future 10))"
+  [fun promise] {:pre [(ifn? fun) (promise? promise)]}
+  (let [fun (memoize fun)]
+    (reify
+      clojure.lang.IDeref
+      (deref [_] (maybe-force (fun @promise)))
+      clojure.lang.IBlockingDeref
+      (deref [_ t v]
+        (let [result (deref promise t v)]
+          (if (realized? promise)
+            (maybe-force (fun @promise))
+            result)))
+      clojure.lang.IPending
+      (isRealized [_] (realized? promise)))))
+
+(defn map-result
+  "Same as map-promise, but only when the value is not an error, following the
+  conventional {:error ...} format."
+  [fun promise]
+  (map-promise #(if (err? %) % (fun %)) promise))
+
+
+
 (defn- json-type? [type]
   (and (string? type)
        (clojure.string/includes? type "application/json")))
 
 (defn- maybe-encode-http-request-body [params]
-  (let [content-type (get-header params "Content-Type")
+  (let [content-type (get-header params "content-type")
         json?        (json-type? content-type)
         encode?      (let [body (:body params)] (and body (not (string? body))))]
     (if encode?
-      (update params :body cheshire/generate-string)
+      (update params :body generate-string)
       params)))
 
 (defn- maybe-parse-http-response-body [response]
   (if (and (string? (:body response))
            (json-type? (get-header response "content-type")))
-    (update response :body cheshire/parse-string keyword)
+    (update response :body parse-string keyword)
     response))
 
 (defn- throw-on-http-error [{:keys [error opts] :as response}]
@@ -67,56 +110,51 @@
 
 (defn- throw-on-http-status [{:keys [opts status body] :as response}]
   (cond (status-ok? status) response
-        (map? body)         (throw (ex-info "Exception in http request" response
-                                            (ex-info (str status) body)))
-        :else               (throw (ex-info "Exception in http request" response
-                                            (new Exception (str body))))))
+        (map? body) (throw (ex-info "exception in http request" response (ex-info (str status) body)))
+        :else (throw (ex-info "exception in http request" response (new Exception (str body))))))
 
 (defn http-req [params]
-  (-> params
-      maybe-encode-http-request-body
-      http/request
-      deref
-      maybe-parse-http-response-body
-      throw-on-http-error
-      throw-on-http-status))
+  (map-promise
+    (comp throw-on-http-status throw-on-http-error maybe-parse-http-response-body)
+    (http/request (maybe-encode-http-request-body params))))
 
-(def http-fetch (comp :body http-req))
+(defn http-fetch [params]
+  (map-result :body (http-req params)))
 
 
 
-(def ^java.nio.charset.Charset utf8 java.nio.charset.StandardCharsets/UTF_8)
+(def ^java.nio.charset.Charset UTF8 java.nio.charset.StandardCharsets/UTF_8)
 
-(defn base64-encode [^String value]
+(defn ^"[B" to-bytes
+  ([value] (to-bytes value UTF8))
+  ([value ^java.nio.charset.Charset coding]
+   (cond (bytes? value) value
+         (string? value) (.getBytes ^String value coding)
+         :else nil)))
+
+(defn ^String bytes-to-str [value]
+  (cond (string? value) value
+        (bytes? value) (new String ^"[B" value UTF8)
+        :else nil))
+
+(defn base64-encode [value]
   (when value
-    (-> (java.util.Base64/getUrlEncoder)
-        (.encode (.getBytes value utf8))
-        (String. utf8))))
+    (.encode (java.util.Base64/getUrlEncoder) (to-bytes value))))
 
-(defn base64-decode [^String value]
+(defn base64-decode [value]
   (when value
-    (-> (java.util.Base64/getUrlDecoder)
-        (.decode (.getBytes value utf8))
-        (String. utf8))))
-
-(def base64-pr (comp base64-encode pr-str))
-
-(def base64-read (comp clojure.edn/read-string base64-decode))
+    (.decode (java.util.Base64/getUrlDecoder) (to-bytes value))))
 
 (defn uri-encode [value]
   (when (string? value)
-    (java.net.URLEncoder/encode value (.toString utf8))))
+    (java.net.URLEncoder/encode value (.toString UTF8))))
 
 (defn uri-decode [value]
   (when (string? value)
-    (java.net.URLDecoder/decode value (.toString utf8))))
-
-(defn uri-decode-full [value]
-  (let [decoded (uri-decode value)]
-    (if (= decoded value) decoded (recur decoded))))
+    (java.net.URLDecoder/decode value (.toString UTF8))))
 
 (defn perverse-encode [value]
-  (-> value cheshire/generate-string uri-encode base64-encode))
+  (-> value generate-string uri-encode base64-encode bytes-to-str))
 
 (defn perverse-decode [value]
-  (-> value base64-decode uri-decode (cheshire/parse-string keyword)))
+  (-> value base64-decode bytes-to-str uri-decode (parse-string keyword)))
