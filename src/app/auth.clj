@@ -52,13 +52,12 @@
 (def ^:private ^Signature sign (Signature/getInstance "SHA256withRSA"))
 (def ^:private ^CertificateFactory cf (CertificateFactory/getInstance "X.509"))
 
-(defn ^Certificate to-cert [secret]
+(defn to-cert ^Certificate [secret]
   (if (instance? Certificate secret)
     secret
     (.generateCertificate cf (clojure.java.io/input-stream (util/to-bytes secret)))))
 
 (def ^:private ^Certificate cert (to-cert (slurp ".auth0.pem")))
-
 
 
 (defn verify-signature [payload signature secret]

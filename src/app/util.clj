@@ -125,36 +125,36 @@
 
 (def ^java.nio.charset.Charset UTF8 java.nio.charset.StandardCharsets/UTF_8)
 
-(defn ^"[B" to-bytes
-  ([value] (to-bytes value UTF8))
-  ([value ^java.nio.charset.Charset coding]
+(defn to-bytes
+  (^bytes [value] (to-bytes value UTF8))
+  (^bytes [value ^java.nio.charset.Charset coding]
    (cond (bytes? value) value
          (string? value) (.getBytes ^String value coding)
          :else nil)))
 
-(defn ^String bytes-to-str [value]
+(defn bytes-to-str ^String [value]
   (cond (string? value) value
-        (bytes? value) (new String ^"[B" value UTF8)
+        (bytes? value) (new String ^bytes value UTF8)
         :else nil))
 
-(defn base64-encode [value]
+(defn base64-encode ^bytes [value]
   (when value
     (.encode (java.util.Base64/getUrlEncoder) (to-bytes value))))
 
-(defn base64-decode [value]
+(defn base64-decode ^bytes [value]
   (when value
     (.decode (java.util.Base64/getUrlDecoder) (to-bytes value))))
 
-(defn uri-encode [value]
+(defn uri-encode ^String [value]
   (when (string? value)
     (java.net.URLEncoder/encode value (.toString UTF8))))
 
-(defn uri-decode [value]
+(defn uri-decode ^String [value]
   (when (string? value)
     (java.net.URLDecoder/decode value (.toString UTF8))))
 
-(defn perverse-encode [value]
+(defn perverse-encode ^String [value]
   (-> value generate-string uri-encode base64-encode bytes-to-str))
 
-(defn perverse-decode [value]
+(defn perverse-decode ^String [value]
   (-> value base64-decode bytes-to-str uri-decode (parse-string keyword)))
