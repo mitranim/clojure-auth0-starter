@@ -1,14 +1,18 @@
 (defproject app "0.0.0"
-  :dependencies [
-    [org.clojure/clojure "1.9.0-RC1"]
-    [com.stuartsierra/component "0.3.2"]
-    [com.mitranim/forge "0.1.0"]
-    [http-kit "2.2.0"]
-    [cheshire "5.8.0"]
-    [hiccup "1.0.5"]
-    [compojure "1.6.0"]
-    [ring/ring-defaults "0.3.1"]
-  ]
+  :dependencies
+  [
+   [org.clojure/clojure "1.10.1"]
+   [com.stuartsierra/component "1.0.0"]
+   [com.mitranim/forge "0.1.4"]
+   [http-kit
+    ;; "2.3.0" produces
+    ;; IllegalStateException: Client/Server mode has not yet been set.
+    "2.4.0-alpha6"]
+   [cheshire "5.10.0"]
+   [hiccup "1.0.5"]
+   [compojure "1.6.1"]
+   [ring/ring-defaults "0.3.2"]
+   ]
 
   :main app.core
 

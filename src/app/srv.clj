@@ -8,7 +8,9 @@
     [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
     [clojure.walk :refer [keywordize-keys]]
     [app.util :as util :refer [getenv]]
-    [app.auth :as auth])
+    [app.auth :as auth]
+    [clojure.pprint]
+    )
   (:import
     [org.httpkit.server HttpServer]))
 
